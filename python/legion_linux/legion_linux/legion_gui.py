@@ -12,7 +12,7 @@ import time
 from math import isfinite
 from typing import List, Optional
 from PyQt6 import QtGui, QtCore
-from PyQt6.QtCore import Qt, QTimer, pyqtSlot, QRunnable, QThreadPool
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, QTimer, pyqtSlot, QRunnable, QThreadPool
 from PyQt6.QtGui import QAction, QGuiApplication
 from PyQt6.QtWidgets import (
     QApplication,
@@ -54,6 +54,57 @@ from legion_linux.legion import (
     SystemNotificationSender,
     DiagnosticMsg,
 )
+
+translate = QCoreApplication.translate
+
+
+# Display names defined in Qt-free legion.py (PlatformProfileFeature and
+# AppModel.icon_color_mode). Listed here with QT_TRANSLATE_NOOP so
+# pylupdate6 extracts them; legion.py itself must stay Qt-free.
+_NAMED_VALUE_STRINGS = (
+    QT_TRANSLATE_NOOP("NamedValue", "Low Power"),
+    QT_TRANSLATE_NOOP("NamedValue", "Balanced Mode"),
+    QT_TRANSLATE_NOOP("NamedValue", "Performance Mode"),
+    QT_TRANSLATE_NOOP("NamedValue", "Custom Mode"),
+    QT_TRANSLATE_NOOP("NamedValue", "Max Power"),
+    QT_TRANSLATE_NOOP("NamedValue", "Always use colorful color scheme"),
+    QT_TRANSLATE_NOOP("NamedValue", "Always use light color scheme"),
+    QT_TRANSLATE_NOOP("NamedValue", "Always use dark color scheme"),
+    QT_TRANSLATE_NOOP("NamedValue", "Use system color scheme"),
+    QT_TRANSLATE_NOOP("NamedValue", "Use inverted system color scheme"),
+)
+
+
+def display_name(named_value) -> str:
+    """Translate the display name of a legion.py NamedValue; unknown names stay English."""
+    return translate("NamedValue", named_value.name)
+
+
+# Fan curve preset keys (FanCurveRepository.fancurve_presets) are identifiers
+# shared with legiond and must never be renamed; only their display labels
+# are localized. The mode/power parts are registered with QT_TRANSLATE_NOOP
+# so pylupdate6 extracts them.
+_PRESET_MODE_LABELS = {
+    "quiet": QT_TRANSLATE_NOOP("Preset", "Low Power"),
+    "balanced": QT_TRANSLATE_NOOP("Preset", "Balanced Mode"),
+    "performance": QT_TRANSLATE_NOOP("Preset", "Performance Mode"),
+    "balanced-performance": QT_TRANSLATE_NOOP("Preset", "Custom Mode"),
+    "extreme": QT_TRANSLATE_NOOP("Preset", "Max Power"),
+}
+_PRESET_POWER_LABELS = {
+    "battery": QT_TRANSLATE_NOOP("Preset", "Battery"),
+    "ac": QT_TRANSLATE_NOOP("Preset", "AC"),
+}
+
+
+def preset_display_name(key) -> str:
+    """Localize a fan curve preset key as '<mode> \u00b7 <power> (<key>)'; unknown keys stay as-is."""
+    mode_key, separator, power_key = key.rpartition("-")
+    if not separator or mode_key not in _PRESET_MODE_LABELS or power_key not in _PRESET_POWER_LABELS:
+        return key
+    mode = translate("Preset", _PRESET_MODE_LABELS[mode_key])
+    power = translate("Preset", _PRESET_POWER_LABELS[power_key])
+    return translate("Preset", "{mode} \u00b7 {power} ({key})").format(mode=mode, power=power, key=key)
 
 
 def get_color_mode():
@@ -166,7 +217,11 @@ def log_error(ex: Exception):
 
 def report_fancurve_write_error(error, parent=None):
     """Report a failed curve operation without letting an exception escape a Qt callback."""
-    QMessageBox.warning(parent, "Fan Curve Write Failed", f"Could not apply the fan curve: {error}")
+    QMessageBox.warning(
+        parent,
+        translate("legion_gui", "Fan Curve Write Failed"),
+        translate("legion_gui", "Could not apply the fan curve: {error}").format(error=error),
+    )
 
 
 def log_ui_feature_action(widget, feature):
@@ -241,7 +296,7 @@ class EnumFeatureController:
                 if update_items:
                     self.widget.clear()
                     for val in values:
-                        self.widget.addItem(val.name, val.value)
+                        self.widget.addItem(display_name(val), val.value)
                 self.widget.blockSignals(False)
 
                 # value -> index
@@ -393,7 +448,9 @@ class PresetTrayController:
     def update_view_from_feature(self):
         for i, action in enumerate(self.actions):
             name = list(self.model.fancurve_repo.get_names())[i]
-            action.setText(f"Apply preset {name}")
+            action.setText(
+                translate("PresetTrayController", "Apply preset {name}").format(name=preset_display_name(name))
+            )
             # The preset key travels in action data; the text may be translated.
             action.setData(name)
             action.setCheckable(False)
@@ -443,9 +500,10 @@ class EnumFeatureTrayController:
                 for i, action in enumerate(self.actions):
                     if i < len(values):
                         value = values[i].value
-                        name = values[i].name
                         action.setVisible(True)
-                        action.setText(f"Set {name}")
+                        action.setText(
+                            translate("EnumFeatureTrayController", "Set {name}").format(name=display_name(values[i]))
+                        )
                         # The value to write travels in action data; the text may be translated.
                         action.setData(value)
                         action.setCheckable(True)
@@ -596,24 +654,24 @@ class HybridGsyncController:
     def update_view_from_feature(self):
         try:
             if not self.gsynchybrid_feature.exists():
-                current_val_str = "not found"
+                current_val_str = translate("HybridGsyncController", "not found")
             else:
                 value = self.gsynchybrid_feature.get()
                 if value:
-                    current_val_str = "current: active"
+                    current_val_str = translate("HybridGsyncController", "current: active")
                 else:
-                    current_val_str = "current: inactive"
+                    current_val_str = translate("HybridGsyncController", "current: inactive")
         # pylint: disable=broad-except
         except Exception as ex:
-            current_val_str = "error"
+            current_val_str = translate("HybridGsyncController", "error")
             log_error(ex)
 
         if self.target_value is None:
             target_val_str = ""
         elif self.target_value:
-            target_val_str = "- target: active (restart required)"
+            target_val_str = translate("HybridGsyncController", "- target: active (restart required)")
         else:
-            target_val_str = "- target: inactive (restart required)"
+            target_val_str = translate("HybridGsyncController", "- target: inactive (restart required)")
         self.current_state_label.setText(current_val_str + " " + target_val_str)
 
 
@@ -899,20 +957,31 @@ class LegionController:
                 point_count = self.model.fancurve_io.get_point_count()
                 level_tables = self.model.fancurve_io.level_tables
                 if level_tables and level_tables[1] is None:
-                    raise ValueError("Cannot edit RPM: the firmware fan 2 RPM ladder is unavailable")
+                    raise ValueError(
+                        translate(
+                            "LegionController",
+                            "Cannot edit RPM: the firmware fan 2 RPM ladder is unavailable",
+                        )
+                    )
             except (OSError, ValueError) as error:
                 self.fancurve_error = str(error)
         self.view_fancurve.note_label2.setText(self.view_fancurve.default_note_text)
         self.view_fancurve.note_label2.setStyleSheet(self.view_fancurve.default_note_style)
         if self.fancurve_error:
             self.view_fancurve.note_label2.setText(
-                f"Cannot read the fan curve: {self.fancurve_error}. "
-                "Writing is disabled. Use Read from HW to retry; sensor monitoring remains available."
+                translate(
+                    "LegionController",
+                    "Cannot read the fan curve: {error}. "
+                    "Writing is disabled. Use Read from HW to retry; sensor monitoring remains available.",
+                ).format(error=self.fancurve_error)
             )
         elif self.model.fancurve_io.hwmon_path and not exists:
             self.view_fancurve.note_label2.setText(
-                "Custom fan curves are not supported on this laptop. "
-                "Sensor monitoring is available. See Other Options for supported settings."
+                translate(
+                    "LegionController",
+                    "Custom fan curves are not supported on this laptop. "
+                    "Sensor monitoring is available. See Other Options for supported settings.",
+                )
             )
             self.view_fancurve.note_label2.setStyleSheet("")
         self.view_fancurve.set_fancurve(
@@ -962,7 +1031,7 @@ class LegionController:
         try:
             self.model.fan_curve = self.view_fancurve.get_fancurve()
         except ValueError as ex:
-            QMessageBox.warning(self.main_window, "Invalid Fan Curve", str(ex))
+            QMessageBox.warning(self.main_window, translate("LegionController", "Invalid Fan Curve"), str(ex))
             return False
         return True
 
@@ -975,9 +1044,12 @@ class LegionController:
         except FileNotFoundError:
             QMessageBox.warning(
                 self.main_window,
-                "Preset Not Found",
-                f"The preset '{name}' does not exist yet.\n\n"
-                "To create it, configure your desired fan curve and click 'Save to Preset'.",
+                translate("LegionController", "Preset Not Found"),
+                translate(
+                    "LegionController",
+                    "The preset '{name}' does not exist yet.\n\n"
+                    "To create it, configure your desired fan curve and click 'Save to Preset'.",
+                ).format(name=name),
             )
             return
         self.update_fancurve_gui()
@@ -1102,11 +1174,17 @@ class FanCurveEntryView:
             deceleration = int(self.decel_edit.text())
         except (ValueError, OverflowError) as ex:
             raise ValueError(
-                f"Invalid value in fan curve point {self.point_id_label.text()}: all fields must be numbers."
+                translate(
+                    "FanCurveEntryView",
+                    "Invalid value in fan curve point {point}: all fields must be numbers.",
+                ).format(point=self.point_id_label.text())
             ) from ex
         if not (isfinite(fan1_speed) and isfinite(fan2_speed)):
             raise ValueError(
-                f"Invalid value in fan curve point {self.point_id_label.text()}: fan speeds must be finite numbers."
+                translate(
+                    "FanCurveEntryView",
+                    "Invalid value in fan curve point {point}: fan speeds must be finite numbers.",
+                ).format(point=self.point_id_label.text())
             )
         # The acceleration/deceleration range is checked in
         # FanCurveTab.get_fancurve() instead: trailing all-zero entries
@@ -1192,9 +1270,12 @@ class FanCurveTab(QWidget):
             for index, entry in enumerate(entries[:writable_size]):
                 if not 2 <= entry.acceleration <= 5 or not 2 <= entry.deceleration <= 5:
                     raise ValueError(
-                        f"Invalid value in fan curve point {index + 1}: "
-                        "acceleration and deceleration time must be between 2 and 5 "
-                        "(the fan controller rejects other values)."
+                        translate(
+                            "FanCurveTab",
+                            "Invalid value in fan curve point {point}: "
+                            "acceleration and deceleration time must be between 2 and 5 "
+                            "(the fan controller rejects other values).",
+                        ).format(point=index + 1)
                     )
         return FanCurve(name="unknown", entries=entries, enable_minifancurve=self.minfancurve_check.isChecked())
 
@@ -1205,29 +1286,35 @@ class FanCurveTab(QWidget):
         self.preset_combobox.clear()
         for preset in presets:
             # The preset key travels in item data; the display text may be translated.
-            self.preset_combobox.addItem(preset, preset)
+            self.preset_combobox.addItem(preset_display_name(preset), preset)
 
     def init_ui(self):
         # pylint: disable=too-many-statements
-        self.fancurve_group = QGroupBox("Fan Curve")
+        self.fancurve_group = QGroupBox(translate("FanCurveTab", "Fan Curve"))
         self.layout = QGridLayout()
-        self.point_id_label = QLabel("Point ID")
-        self.fan_speed1_label = QLabel("Fan 1 Speed [rpm]")
-        self.fan_speed2_label = QLabel("Fan 2 Speed [rpm]")
-        self.cpu_lower_temp_label = QLabel("CPU Lower Temp. [°C]")
-        self.cpu_upper_temp_label = QLabel("CPU Upper Temp. [°C]")
-        self.gpu_lower_temp_label = QLabel("GPU Lower Temp. [°C]")
-        self.gpu_upper_temp_label = QLabel("GPU Upper Temp. [°C]")
-        self.ic_lower_temp_label = QLabel("IC Lower Temp. [°C]")
-        self.ic_upper_temp_label = QLabel("IC Upper Temp. [°C]")
-        self.accel_label = QLabel("Acceleration  Time [s]")
-        self.decel_label = QLabel("Deceleration Time [s]")
-        self.minfancurve_check = QCheckBox("Minifancurve if too cold")
+        self.point_id_label = QLabel(translate("FanCurveTab", "Point ID"))
+        self.fan_speed1_label = QLabel(translate("FanCurveTab", "Fan 1 Speed [rpm]"))
+        self.fan_speed2_label = QLabel(translate("FanCurveTab", "Fan 2 Speed [rpm]"))
+        self.cpu_lower_temp_label = QLabel(translate("FanCurveTab", "CPU Lower Temp. [\u00b0C]"))
+        self.cpu_upper_temp_label = QLabel(translate("FanCurveTab", "CPU Upper Temp. [\u00b0C]"))
+        self.gpu_lower_temp_label = QLabel(translate("FanCurveTab", "GPU Lower Temp. [\u00b0C]"))
+        self.gpu_upper_temp_label = QLabel(translate("FanCurveTab", "GPU Upper Temp. [\u00b0C]"))
+        self.ic_lower_temp_label = QLabel(translate("FanCurveTab", "IC Lower Temp. [\u00b0C]"))
+        self.ic_upper_temp_label = QLabel(translate("FanCurveTab", "IC Upper Temp. [\u00b0C]"))
+        self.accel_label = QLabel(translate("FanCurveTab", "Acceleration  Time [s]"))
+        self.decel_label = QLabel(translate("FanCurveTab", "Deceleration Time [s]"))
+        self.minfancurve_check = QCheckBox(translate("FanCurveTab", "Minifancurve if too cold"))
         self.lockfancontroller_check = QCheckBox(
-            "Lock fan controller, lock temperature sensors, and lock current fan speed"
+            translate(
+                "FanCurveTab",
+                "Lock fan controller, lock temperature sensors, and lock current fan speed",
+            )
         )
         self.maximumfanspeed_check = QCheckBox(
-            "Set speed to maximum fan speed (often only in custom power mode possible)"
+            translate(
+                "FanCurveTab",
+                "Set speed to maximum fan speed (often only in custom power mode possible)",
+            )
         )
         self.layout.addWidget(self.point_id_label, 0, 0)
         self.layout.addWidget(self.fan_speed1_label, 1, 0)
@@ -1250,24 +1337,29 @@ class FanCurveTab(QWidget):
         for entry_view in self.entry_edits:
             for field in entry_view.edits:
                 field.textChanged.connect(self.on_entry_changed)
-        self.plot_group = QGroupBox("Fan Curve Preview")
+        self.plot_group = QGroupBox(translate("FanCurveTab", "Fan Curve Preview"))
         plot_layout = QVBoxLayout()
         plot_layout.addWidget(self.curve_plot)
         plot_hint = QLabel(
-            "Drag a dot vertically for speed or horizontally to shift both temperature bounds. "
-            "Drag a square to edit only the lower bound; hover for exact values, Esc cancels. "
-            "Shared-level curves use one line for both fans. Only Apply to HW writes hardware."
+            translate(
+                "FanCurveTab",
+                "Drag a dot vertically for speed or horizontally to shift both temperature bounds. "
+                "Drag a square to edit only the lower bound; hover for exact values, Esc cancels. "
+                "Shared-level curves use one line for both fans. Only Apply to HW writes hardware.",
+            )
         )
         plot_hint.setWordWrap(True)
         plot_layout.addWidget(plot_hint)
         self.plot_group.setLayout(plot_layout)
 
-        self.button1_group = QGroupBox("Fancurve Hardware")
+        self.button1_group = QGroupBox(translate("FanCurveTab", "Fancurve Hardware"))
         self.button1_layout = QGridLayout()
 
-        self.load_button = QPushButton("Read from HW")
-        self.write_button = QPushButton("Apply to HW")
-        self.note_label = QLabel("Fan curve is reset to default if you toggle power mode (Fn + Q).")
+        self.load_button = QPushButton(translate("FanCurveTab", "Read from HW"))
+        self.write_button = QPushButton(translate("FanCurveTab", "Apply to HW"))
+        self.note_label = QLabel(
+            translate("FanCurveTab", "Fan curve is reset to default if you toggle power mode (Fn + Q).")
+        )
         self.load_button.clicked.connect(self.controller.on_read_fan_curve_from_hw)
         self.write_button.clicked.connect(self.controller.on_write_fan_curve_to_hw)
         self.button1_group.setLayout(self.button1_layout)
@@ -1275,10 +1367,10 @@ class FanCurveTab(QWidget):
         self.button1_layout.addWidget(self.write_button, 0, 1)
         self.button1_layout.addWidget(self.note_label, 1, 0)
 
-        self.button2_group = QGroupBox("Fancurve Preset")
+        self.button2_group = QGroupBox(translate("FanCurveTab", "Fancurve Preset"))
         self.button2_layout = QGridLayout()
-        self.save_to_preset_button = QPushButton("Save to Preset")
-        self.load_from_preset_button = QPushButton("Load from Preset")
+        self.save_to_preset_button = QPushButton(translate("FanCurveTab", "Save to Preset"))
+        self.load_from_preset_button = QPushButton(translate("FanCurveTab", "Load from Preset"))
         self.save_to_preset_button.clicked.connect(self.controller.on_save_to_preset)
         self.load_from_preset_button.clicked.connect(self.controller.on_load_from_preset)
         self.preset_combobox = QComboBox(self)
@@ -1294,9 +1386,13 @@ class FanCurveTab(QWidget):
         self.main_layout.addWidget(self.button2_group, 2)
 
         self.note_label2 = QLabel(
-            "Greyed out features are not available. If most features are greyed out, "
-            "the driver is not loaded properly or hwmon directory not found.\nIf features are marked "
-            "red, an unexpected error has occurred while accessing the hardware and you should notify the maintainer."
+            translate(
+                "FanCurveTab",
+                "Greyed out features are not available. If most features are greyed out, "
+                "the driver is not loaded properly or hwmon directory not found.\nIf features are marked "
+                "red, an unexpected error has occurred while accessing the hardware "
+                "and you should notify the maintainer.",
+            )
         )
         self.note_label2.setStyleSheet("color: red;")
         self.default_note_text = self.note_label2.text()
@@ -1316,48 +1412,60 @@ class OtherOptionsTab(QWidget):
         self.controller.view_otheroptions = self
 
     def init_ui(self):
-        self.options_group = QGroupBox("Options")
+        self.options_group = QGroupBox(translate("OtherOptionsTab", "Options"))
         self.options_layout = QVBoxLayout()
         self.options_group.setLayout(self.options_layout)
 
         self.fnlock_check = QCheckBox(
-            "Fn Lock (Use special function of F1-F12 keys without pressing Fn; same as Fn + Esc)"
+            translate(
+                "OtherOptionsTab",
+                "Fn Lock (Use special function of F1-F12 keys without pressing Fn; same as Fn + Esc)",
+            )
         )
         self.options_layout.addWidget(self.fnlock_check, 0)
 
-        self.winkey_check = QCheckBox("Win Key Enabled")
+        self.winkey_check = QCheckBox(translate("OtherOptionsTab", "Win Key Enabled"))
         self.options_layout.addWidget(self.winkey_check, 0)
 
-        self.touchpad_check = QCheckBox("Touchpad Enabled (Lock or unlock touchpad; same as Fn + F10)")
+        self.touchpad_check = QCheckBox(
+            translate(
+                "OtherOptionsTab",
+                "Touchpad Enabled (Lock or unlock touchpad; same as Fn + F10)",
+            )
+        )
         self.options_layout.addWidget(self.touchpad_check, 1)
 
-        self.camera_power_check = QCheckBox("Camera Power Enabled")
+        self.camera_power_check = QCheckBox(translate("OtherOptionsTab", "Camera Power Enabled"))
         self.options_layout.addWidget(self.camera_power_check, 0)
 
         self.batteryconservation_check = QCheckBox(
-            "Battery Conservation (keep battery at about 50 percent and do not charge on AC to extend battery life)"
+            translate(
+                "OtherOptionsTab",
+                "Battery Conservation (keep battery at about 50 percent "
+                "and do not charge on AC to extend battery life)",
+            )
         )
         self.options_layout.addWidget(self.batteryconservation_check, 2)
 
-        self.rapid_charging_check = QCheckBox("Rapid Charging")
+        self.rapid_charging_check = QCheckBox(translate("OtherOptionsTab", "Rapid Charging"))
         self.options_layout.addWidget(self.rapid_charging_check, 3)
 
-        self.always_on_usb_check = QCheckBox("Charge Output from USB always on")
+        self.always_on_usb_check = QCheckBox(translate("OtherOptionsTab", "Charge Output from USB always on"))
         self.options_layout.addWidget(self.always_on_usb_check, 4)
 
-        self.overdrive_check = QCheckBox("Display Overdrive Enabled")
+        self.overdrive_check = QCheckBox(translate("OtherOptionsTab", "Display Overdrive Enabled"))
         self.options_layout.addWidget(self.overdrive_check, 5)
 
-        self.ylogo_light_check = QCheckBox("Y-Logo/Lid LED light")
+        self.ylogo_light_check = QCheckBox(translate("OtherOptionsTab", "Y-Logo/Lid LED light"))
         self.options_layout.addWidget(self.ylogo_light_check, 5)
 
-        self.ioport_light_check = QCheckBox("IO-Port/Rear LEDs light")
+        self.ioport_light_check = QCheckBox(translate("OtherOptionsTab", "IO-Port/Rear LEDs light"))
         self.options_layout.addWidget(self.ioport_light_check, 5)
 
-        self.hybrid_label = QLabel("Hybrid Mode (sometimes also GSync):")
+        self.hybrid_label = QLabel(translate("OtherOptionsTab", "Hybrid Mode (sometimes also GSync):"))
         self.hybrid_state_label = QLabel("")
-        self.hybrid_activate_button = QPushButton("Activate")
-        self.hybrid_deactivate_button = QPushButton("Deactivate")
+        self.hybrid_activate_button = QPushButton(translate("OtherOptionsTab", "Activate"))
+        self.hybrid_deactivate_button = QPushButton(translate("OtherOptionsTab", "Deactivate"))
         self.hybrid_layout = QHBoxLayout()
         self.hybrid_layout.addWidget(self.hybrid_label)
         self.hybrid_layout.addWidget(self.hybrid_activate_button)
@@ -1372,13 +1480,13 @@ class OtherOptionsTab(QWidget):
         self.main_layout.addStretch()
         self.setLayout(self.main_layout)
 
-        self.bootlogo_group = QGroupBox("Boot Logo")
+        self.bootlogo_group = QGroupBox(translate("OtherOptionsTab", "Boot Logo"))
         self.bootlogo_layout = QVBoxLayout()
         self.bootlogo_group.setLayout(self.bootlogo_layout)
-        self.bootlogo_checkbox = QCheckBox("Enable Boot Logo")
+        self.bootlogo_checkbox = QCheckBox(translate("OtherOptionsTab", "Enable Boot Logo"))
         self.bootlogo_checkbox.clicked.connect(self.on_bootlogo_toggled)
         self.bootlogo_layout.addWidget(self.bootlogo_checkbox)
-        self.select_image_btn = QPushButton("Select Image")
+        self.select_image_btn = QPushButton(translate("OtherOptionsTab", "Select Image"))
         self.select_image_btn.clicked.connect(self.on_select_image)
         self.bootlogo_layout.addWidget(self.select_image_btn)
         self.main_layout.addWidget(self.bootlogo_group)
@@ -1394,92 +1502,126 @@ class OtherOptionsTab(QWidget):
         else:
             try:
                 self.controller.model.restore_boot_logo()
-                QMessageBox.information(self, "Success", "Boot Logo restored.")
+                QMessageBox.information(
+                    self,
+                    translate("OtherOptionsTab", "Success"),
+                    translate("OtherOptionsTab", "Boot Logo restored."),
+                )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                QMessageBox.critical(self, "Error", f"Restore failed: {e}")
+                QMessageBox.critical(
+                    self,
+                    translate("OtherOptionsTab", "Error"),
+                    translate("OtherOptionsTab", "Restore failed: {error}").format(error=e),
+                )
             self.update_bootlogo_view()
 
     def on_select_image(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Images (*.png *.jpg *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            translate("OtherOptionsTab", "Select Image"),
+            "",
+            translate("OtherOptionsTab", "Images ({patterns})").format(patterns="*.png *.jpg *.bmp"),
+        )
         if path:
             try:
                 self.controller.model.enable_boot_logo(path)
-                QMessageBox.information(self, "Success", f"Boot Logo enabled with {path}.")
+                QMessageBox.information(
+                    self,
+                    translate("OtherOptionsTab", "Success"),
+                    translate("OtherOptionsTab", "Boot Logo enabled with {path}.").format(path=path),
+                )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                QMessageBox.critical(self, "Error", f"Enable failed: {e}")
+                QMessageBox.critical(
+                    self,
+                    translate("OtherOptionsTab", "Error"),
+                    translate("OtherOptionsTab", "Enable failed: {error}").format(error=e),
+                )
                 self.bootlogo_checkbox.setChecked(False)
             self.update_bootlogo_view()
 
     def init_power_ui(self):
         # pylint: disable=too-many-statements
-        self.power_group = QGroupBox("Power Options")
+        self.power_group = QGroupBox(translate("OtherOptionsTab", "Power Options"))
         self.power_all_layout = QVBoxLayout()
         self.power_group.setLayout(self.power_all_layout)
 
         self.power_layout = QGridLayout()
         self.power_all_layout.addLayout(self.power_layout, 0)
 
-        self.power_mode_label = QLabel("Power mode/platform profile:")
+        self.power_mode_label = QLabel(translate("OtherOptionsTab", "Power mode/platform profile:"))
         self.power_mode_combo = QComboBox()
         self.power_layout.addWidget(self.power_mode_label, 0, 0)
         self.power_layout.addWidget(self.power_mode_combo, 0, 1)
 
-        self.cpu_overclock_ckeck = QCheckBox("CPU Overclock")
+        self.cpu_overclock_ckeck = QCheckBox(translate("OtherOptionsTab", "CPU Overclock"))
         self.power_layout.addWidget(self.cpu_overclock_ckeck, 1, 0)
 
-        self.gpu_overclock_check = QCheckBox("GPU Overclock")
+        self.gpu_overclock_check = QCheckBox(translate("OtherOptionsTab", "GPU Overclock"))
         self.power_layout.addWidget(self.gpu_overclock_check, 1, 1)
 
-        self.cpu_longterm_power_limit_spinbox_label = QLabel("CPU Long Term Power Limit [W]")
+        self.cpu_longterm_power_limit_spinbox_label = QLabel(
+            translate("OtherOptionsTab", "CPU Long Term Power Limit [W]")
+        )
         self.cpu_longterm_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.cpu_longterm_power_limit_spinbox_label, 3, 0)
         self.power_layout.addWidget(self.cpu_longterm_power_limit_spinbox, 3, 1)
 
-        self.cpu_shortterm_power_limit_spinbox_label = QLabel("CPU Short Term Power Limit [W]")
+        self.cpu_shortterm_power_limit_spinbox_label = QLabel(
+            translate("OtherOptionsTab", "CPU Short Term Power Limit [W]")
+        )
         self.cpu_shortterm_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.cpu_shortterm_power_limit_spinbox_label, 4, 0)
         self.power_layout.addWidget(self.cpu_shortterm_power_limit_spinbox, 4, 1)
 
-        self.cpu_peak_power_limit_spinbox_label = QLabel("CPU Peak Power Limit [W]")
+        self.cpu_peak_power_limit_spinbox_label = QLabel(translate("OtherOptionsTab", "CPU Peak Power Limit [W]"))
         self.cpu_peak_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.cpu_peak_power_limit_spinbox_label, 5, 0)
         self.power_layout.addWidget(self.cpu_peak_power_limit_spinbox, 5, 1)
 
-        self.cpu_cross_loading_power_limit_spinbox_label = QLabel("CPU Cross Loading Power Limit [W]")
+        self.cpu_cross_loading_power_limit_spinbox_label = QLabel(
+            translate("OtherOptionsTab", "CPU Cross Loading Power Limit [W]")
+        )
         self.cpu_cross_loading_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.cpu_cross_loading_power_limit_spinbox_label, 6, 0)
         self.power_layout.addWidget(self.cpu_cross_loading_power_limit_spinbox, 6, 1)
 
-        self.cpu_apu_sppt_power_limit_spinbox_label = QLabel("CPU APU SPPT Power Limit [W]")
+        self.cpu_apu_sppt_power_limit_spinbox_label = QLabel(
+            translate("OtherOptionsTab", "CPU APU SPPT Power Limit [W]")
+        )
         self.cpu_apu_sppt_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.cpu_apu_sppt_power_limit_spinbox_label, 7, 0)
         self.power_layout.addWidget(self.cpu_apu_sppt_power_limit_spinbox, 7, 1)
 
-        self.gpu_ctgp_power_limit_spinbox_label = QLabel("GPU cTGP Power Limit [W]")
+        self.gpu_ctgp_power_limit_spinbox_label = QLabel(translate("OtherOptionsTab", "GPU cTGP Power Limit [W]"))
         self.gpu_ctgp_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.gpu_ctgp_power_limit_spinbox_label, 8, 0)
         self.power_layout.addWidget(self.gpu_ctgp_power_limit_spinbox, 8, 1)
 
-        self.gpu_ppab_power_limit_spinbox_label = QLabel("GPU PPAB Power Limit [W]")
+        self.gpu_ppab_power_limit_spinbox_label = QLabel(translate("OtherOptionsTab", "GPU PPAB Power Limit [W]"))
         self.gpu_ppab_power_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.gpu_ppab_power_limit_spinbox_label, 9, 0)
         self.power_layout.addWidget(self.gpu_ppab_power_limit_spinbox, 9, 1)
 
-        self.gpu_temperature_limit_spinbox_label = QLabel("GPU Temperature Limit [°C]")
+        self.gpu_temperature_limit_spinbox_label = QLabel(
+            translate("OtherOptionsTab", "GPU Temperature Limit [\u00b0C]")
+        )
         self.gpu_temperature_limit_spinbox = QSpinBox()
         self.power_layout.addWidget(self.gpu_temperature_limit_spinbox_label, 10, 0)
         self.power_layout.addWidget(self.gpu_temperature_limit_spinbox, 10, 1)
 
-        self.power_load_button = QPushButton("Read from HW")
-        self.power_write_button = QPushButton("Apply to HW")
+        self.power_load_button = QPushButton(translate("OtherOptionsTab", "Read from HW"))
+        self.power_write_button = QPushButton(translate("OtherOptionsTab", "Apply to HW"))
         self.power_load_button.clicked.connect(self.controller.update_power_gui)
         self.power_write_button.clicked.connect(self.controller.power_gui_write_to_hw)
         self.power_layout.addWidget(self.power_load_button, 11, 0)
         self.power_layout.addWidget(self.power_write_button, 11, 1)
 
         self.power_note_label = QLabel(
-            "It is recommended to customize the power settings only in custom mode. Although "
-            "it is possible to change them in any mode."
+            translate(
+                "OtherOptionsTab",
+                "It is recommended to customize the power settings only in custom mode. Although "
+                "it is possible to change them in any mode.",
+            )
         )
         self.power_note_label.setStyleSheet("color: red;")
         self.power_note_label.setWordWrap(True)
@@ -1494,42 +1636,56 @@ class AutomationTab(QWidget):
         self.controller.view_automation = self
 
     def init_ui(self):
-        self.options_group = QGroupBox("Systemd Services")
+        self.options_group = QGroupBox(translate("AutomationTab", "Systemd Services"))
         self.options_layout = QVBoxLayout()
         self.options_group.setLayout(self.options_layout)
 
-        self.power_profiles_deamon_service_check = QCheckBox("Power Profiles Daemon Enabled")
+        self.power_profiles_deamon_service_check = QCheckBox(
+            translate("AutomationTab", "Power Profiles Daemon Enabled")
+        )
         self.options_layout.addWidget(self.power_profiles_deamon_service_check, 0)
 
-        self.lenovo_legion_laptop_support_service_check = QCheckBox("Lenovo Legion Laptop Support Daemon Enabled")
+        self.lenovo_legion_laptop_support_service_check = QCheckBox(
+            translate("AutomationTab", "Lenovo Legion Laptop Support Daemon Enabled")
+        )
         self.options_layout.addWidget(self.lenovo_legion_laptop_support_service_check, 1)
 
-        self.legion_gui_autostart_check = QCheckBox("Autostart Legion GUI on Session Startup")
+        self.legion_gui_autostart_check = QCheckBox(
+            translate("AutomationTab", "Autostart Legion GUI on Session Startup")
+        )
         self.options_layout.addWidget(self.legion_gui_autostart_check, 1)
 
-        self.close_to_tray_check = QCheckBox("Close Legion GUI to Tray")
+        self.close_to_tray_check = QCheckBox(translate("AutomationTab", "Close Legion GUI to Tray"))
         self.options_layout.addWidget(self.close_to_tray_check, 2)
 
-        self.open_closed_to_tray_check = QCheckBox("Open Legion GUI Closed to Tray")
+        self.open_closed_to_tray_check = QCheckBox(translate("AutomationTab", "Open Legion GUI Closed to Tray"))
         self.options_layout.addWidget(self.open_closed_to_tray_check, 3)
 
-        self.icon_color_mode_label = QLabel("Icon Color Mode (requires reopening the app)")
+        self.icon_color_mode_label = QLabel(translate("AutomationTab", "Icon Color Mode (requires reopening the app)"))
         self.options_layout.addWidget(self.icon_color_mode_label, 3)
         self.icon_color_mode_combobox = QComboBox()
         self.options_layout.addWidget(self.icon_color_mode_combobox, 3)
 
-        self.enable_gui_monitoring_check = QCheckBox("Enable Monitoring while GUI is Running")
+        self.enable_gui_monitoring_check = QCheckBox(
+            translate("AutomationTab", "Enable Monitoring while GUI is Running")
+        )
         self.options_layout.addWidget(self.enable_gui_monitoring_check, 3)
 
         self.note_label = QLabel(
-            'These are Experimental Features.\n To apply and save the Settings Press "Save" or "Save and Quit"'
+            translate(
+                "AutomationTab",
+                'These are Experimental Features.\n To apply and save the Settings Press "Save" or "Save and Quit"',
+            )
         )
         self.options_layout.addWidget(self.note_label, 4)
 
         self.note_openrc_label = QLabel(
-            "OpenRC service are available but need to be enable manually!\n"
-            "They are install automatically on gentoo base distro!\n"
-            "To get the files go to extra/service in the repo.\n"
+            translate(
+                "AutomationTab",
+                "OpenRC service are available but need to be enable manually!\n"
+                "They are install automatically on gentoo base distro!\n"
+                "To get the files go to extra/service in the repo.\n",
+            )
         )
         self.options_layout.addWidget(self.note_openrc_label, 4)
 
@@ -1567,7 +1723,10 @@ class AboutTab(QWidget):
     def init_ui(self):
         # pylint: disable=line-too-long
         about_label = QLabel(
-            'Help by giving a star to the github repo <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>'
+            translate(
+                "AboutTab",
+                'Help by giving a star to the github repo <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            )
         )
         about_label.setOpenExternalLinks(True)
         about_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1586,11 +1745,11 @@ class Tabs(QTabWidget):
 
         # setup tabs
         self.tabs = (
-            ("Fan Curve", FanCurveTab(controller)),
-            ("Other Options", OtherOptionsTab(controller)),
-            ("Automation", AutomationTab(controller)),
-            ("Log", LogTab(controller)),
-            ("About", AboutTab(controller)),
+            (translate("Tabs", "Fan Curve"), FanCurveTab(controller)),
+            (translate("Tabs", "Other Options"), OtherOptionsTab(controller)),
+            (translate("Tabs", "Automation"), AutomationTab(controller)),
+            (translate("Tabs", "Log"), LogTab(controller)),
+            (translate("Tabs", "About"), AboutTab(controller)),
         )
 
         for tab_name, tab in self.tabs:
@@ -1637,11 +1796,11 @@ class MainWindow(QMainWindow):
         self.tabs = Tabs(controller)
 
         # bottom buttons
-        self.quit_button = QPushButton("Quit")
+        self.quit_button = QPushButton(translate("MainWindow", "Quit"))
         self.quit_button.clicked.connect(controller.app_close)
-        self.ok_button = QPushButton("Save")
+        self.ok_button = QPushButton(translate("MainWindow", "Save"))
         self.ok_button.clicked.connect(controller.save_settings)
-        self.ok_quit_button = QPushButton("Save and Quit")
+        self.ok_quit_button = QPushButton(translate("MainWindow", "Save and Quit"))
         self.ok_quit_button.clicked.connect(controller.app_close_and_save)
         self.button_layout = QHBoxLayout()
         # Push to the right with strecht
@@ -1679,17 +1838,36 @@ class MainWindow(QMainWindow):
     def set_random_header_msg(self):
         # pylint: disable=line-too-long
         msgs = [
-            'Show your appreciation for this tool by giving a star on github <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
-            'Help by giving a star to the github repository <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
-            'Please give a star on github to support. My goal is to merge the driver into the main Linux kernel,<br> so no recompilation is required after a Linux update <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
-            'Please give star on github the repository if this is useful or might be useful in the future <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
-            'Please give a star on github to show that this it useful to me and the Linux community,<br> so hopefully the driver can be merged to the Linux kernel <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            translate(
+                "MainWindow",
+                'Show your appreciation for this tool by giving a star on github <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            ),
+            translate(
+                "MainWindow",
+                'Help by giving a star to the github repository <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            ),
+            translate(
+                "MainWindow",
+                'Please give a star on github to support. My goal is to merge the driver into the main Linux kernel,<br> so no recompilation is required after a Linux update <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            ),
+            translate(
+                "MainWindow",
+                'Please give star on github the repository if this is useful or might be useful in the future <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            ),
+            translate(
+                "MainWindow",
+                'Please give a star on github to show that this it useful to me and the Linux community,<br> so hopefully the driver can be merged to the Linux kernel <a href="https://github.com/johnfanv2/LenovoLegionLinux" >https://github.com/johnfanv2/LenovoLegionLinux</a>',
+            ),
         ]
         self.set_header_msg(random.choice(msgs))
 
     def on_start(self):
         if self.show_root_dialog:
-            QMessageBox.critical(self, "Error", "The program must be run as root!")
+            QMessageBox.critical(
+                self,
+                translate("MainWindow", "Error"),
+                translate("MainWindow", "The program must be run as root!"),
+            )
 
         if self.controller.model.app_model.open_closed_to_tray.get():
             self.hide_to_tray()
@@ -1747,32 +1925,32 @@ class LegionTray:
             return act
 
         # title
-        self.title = QAction("Legion")
+        self.title = QAction(translate("LegionTray", "Legion"))
         self.title.setEnabled(False)
         self.menu.addAction(self.title)
         # ---
         self.menu.addSeparator()
         # open
-        self.open_action = QAction("Show")
+        self.open_action = QAction(translate("LegionTray", "Show"))
         self.open_action.triggered.connect(self.controller.app_show)
         self.menu.addAction(self.open_action)
         # quit
-        self.quit_action = QAction("Quit")
+        self.quit_action = QAction(translate("LegionTray", "Quit"))
         self.quit_action.triggered.connect(self.controller.app_close)
         self.menu.addAction(self.quit_action)
         self.tray.setContextMenu(self.menu)
         self.tray.show()
         # ---
         self.menu.addSeparator()
-        self.batteryconservation_action = QAction("Conservation Mode")
+        self.batteryconservation_action = QAction(translate("LegionTray", "Conservation Mode"))
         self.menu.addAction(self.batteryconservation_action)
-        self.rapid_charging_action = QAction("Rapid Charging")
+        self.rapid_charging_action = QAction(translate("LegionTray", "Rapid Charging"))
         self.menu.addAction(self.rapid_charging_action)
-        self.fnlock_action = QAction("Fn Lock")
+        self.fnlock_action = QAction(translate("LegionTray", "Fn Lock"))
         self.menu.addAction(self.fnlock_action)
-        self.touchpad_action = QAction("Touchpad Enabled")
+        self.touchpad_action = QAction(translate("LegionTray", "Touchpad Enabled"))
         self.menu.addAction(self.touchpad_action)
-        self.always_on_usb_charging_action = QAction("Always On USB Charging")
+        self.always_on_usb_charging_action = QAction(translate("LegionTray", "Always On USB Charging"))
         self.menu.addAction(self.always_on_usb_charging_action)
         # ---
         self.menu.addSeparator()
@@ -1792,7 +1970,7 @@ class LegionTray:
         self.powermode4_action = add_action("powermode")
         # ---
         self.menu.addSeparator()
-        self.star_action = QAction("Help giving a star to the github repo (click here)")
+        self.star_action = QAction(translate("LegionTray", "Help giving a star to the github repo (click here)"))
         self.star_action.triggered.connect(open_star_link)
         self.menu.addAction(self.star_action)
 

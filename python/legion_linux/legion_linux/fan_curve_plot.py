@@ -2,7 +2,7 @@
 
 from math import ceil, isfinite
 
-from PyQt6.QtCore import Qt, QPointF, QRectF
+from PyQt6.QtCore import QCoreApplication, Qt, QPointF, QRectF
 from PyQt6.QtGui import QColor, QPainter, QPen, QPalette
 from PyQt6.QtWidgets import QWidget
 
@@ -13,6 +13,8 @@ from legion_linux.legion import (
     fan_level_to_rpm,
     fan_rpm_to_level,
 )
+
+translate = QCoreApplication.translate
 
 
 class FanCurvePlot(QWidget):
@@ -31,7 +33,7 @@ class FanCurvePlot(QWidget):
         self.setMinimumSize(540, 290)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setAccessibleName("Fan curve preview and drag editor")
+        self.setAccessibleName(translate("FanCurvePlot", "Fan curve preview and drag editor"))
 
     def set_capabilities(self, point_count, temperature_fields, has_fan_2_speed, level_tables, editable):
         self.point_count = min(point_count, len(self.entry_edits))
@@ -181,7 +183,11 @@ class FanCurvePlot(QWidget):
         painter.save()
         self._paint_y_ticks(painter, area, maximum, muted)
         self._paint_x_ticks(painter, area, domain, muted)
-        caption = "TEMPERATURE (°C)" if self.temperature_axis else "POINT ID (NO WRITABLE TEMPERATURES)"
+        caption = (
+            translate("FanCurvePlot", "TEMPERATURE (\u00b0C)")
+            if self.temperature_axis
+            else translate("FanCurvePlot", "POINT ID (NO WRITABLE TEMPERATURES)")
+        )
         painter.setPen(muted)
         painter.drawText(int(area.center().x() - 110), self.height() - 10, caption)
         painter.restore()
@@ -189,7 +195,10 @@ class FanCurvePlot(QWidget):
     def _paint_legend(self, painter, colors, muted, area):
         painter.save()
         painter.setPen(muted)
-        painter.drawText(18, 28, "FIRMWARE LEVEL" if self.level_tables else "FAN SPEED  ·  RPM")
+        if self.level_tables:
+            painter.drawText(18, 28, translate("FanCurvePlot", "FIRMWARE LEVEL"))
+        else:
+            painter.drawText(18, 28, translate("FanCurvePlot", "FAN SPEED  \u00b7  RPM"))
         for fan, color in enumerate(colors):
             if fan == 1 and not self.has_fan_2_speed:
                 continue
@@ -199,7 +208,10 @@ class FanCurvePlot(QWidget):
             painter.setPen(QPen(color, 2))
             painter.drawEllipse(QRectF(x, 18, 10, 10))
             painter.setPen(muted)
-            legend = "Both fans (shared level)" if self.level_tables and not self.has_fan_2_speed else f"Fan {fan + 1}"
+            if self.level_tables and not self.has_fan_2_speed:
+                legend = translate("FanCurvePlot", "Both fans (shared level)")
+            else:
+                legend = translate("FanCurvePlot", "Fan {number}").format(number=fan + 1)
             painter.drawText(int(x + 16), 28, legend)
         painter.restore()
 
@@ -267,7 +279,7 @@ class FanCurvePlot(QWidget):
             return
         painter.save()
         painter.setPen(muted)
-        painter.drawText(int(area.left()), int(area.bottom() + 66), "TRIMMED ON WRITE")
+        painter.drawText(int(area.left()), int(area.bottom() + 66), translate("FanCurvePlot", "TRIMMED ON WRITE"))
         for offset, index in enumerate(padding):
             x = area.left() + 143 + offset * 32
             y = area.bottom() + 62
@@ -298,7 +310,11 @@ class FanCurvePlot(QWidget):
         self._paint_legend(painter, colors, muted, area)
         if not self.point_count:
             painter.setPen(muted)
-            painter.drawText(area.toRect(), Qt.AlignmentFlag.AlignCenter, "No writable fan curve points")
+            painter.drawText(
+                area.toRect(),
+                Qt.AlignmentFlag.AlignCenter,
+                translate("FanCurvePlot", "No writable fan curve points"),
+            )
             return
         self._paint_series(painter, area, rows, size=size, maximum=maximum, domain=domain, colors=colors)
         self._paint_padding(painter, area, rows, size, muted)
@@ -331,13 +347,20 @@ class FanCurvePlot(QWidget):
             if self.level_tables
             else (row.fan1_speed, row.fan2_speed)[fan]
         )
-        label = f"L{level} · {rpm:,.0f} RPM" if self.level_tables else f"{rpm:,.0f} RPM"
+        if self.level_tables:
+            label = translate("FanCurvePlot", "L{level} \u00b7 {rpm} RPM").format(level=level, rpm=f"{rpm:,.0f}")
+        else:
+            label = translate("FanCurvePlot", "{rpm} RPM").format(rpm=f"{rpm:,.0f}")
         if self.temperature_axis:
             prefix = ("cpu", "gpu")[fan]
             if f"{prefix}_lower_temp" in self.temperature_fields:
-                label += f" · {getattr(row, f'{prefix}_lower_temp')}–{getattr(row, f'{prefix}_upper_temp')}°C"
+                label += translate("FanCurvePlot", " \u00b7 {lower}\u2013{upper}\u00b0C").format(
+                    lower=getattr(row, f"{prefix}_lower_temp"), upper=getattr(row, f"{prefix}_upper_temp")
+                )
             else:
-                label += f" · {getattr(row, f'{prefix}_upper_temp')}°C"
+                label += translate("FanCurvePlot", " \u00b7 {upper}\u00b0C").format(
+                    upper=getattr(row, f"{prefix}_upper_temp")
+                )
         width = painter.fontMetrics().horizontalAdvance(label) + 20
         x = max(area.left(), min(area.right() - width, anchor[0] + 12))
         y = anchor[1] - 42 if anchor[1] > area.top() + 46 else anchor[1] + 15
@@ -473,27 +496,36 @@ class FanCurvePlot(QWidget):
             if self.level_tables
             else (row.fan1_speed, row.fan2_speed)[fan]
         )
-        details = f"Point {index + 1} · Fan {fan + 1}: {rpm:g} RPM"
+        details = translate("FanCurvePlot", "Point {point} \u00b7 Fan {fan}: {rpm} RPM").format(
+            point=index + 1, fan=fan + 1, rpm=f"{rpm:g}"
+        )
         if self.level_tables:
-            details += f" (firmware level {speed})"
+            details += translate("FanCurvePlot", " (firmware level {level})").format(level=speed)
             if not self.has_fan_2_speed:
-                details += f"\nFan 2: {fan_level_to_rpm(speed, self.level_tables[1])} RPM at the same level"
+                details += translate("FanCurvePlot", "\nFan 2: {rpm} RPM at the same level").format(
+                    rpm=fan_level_to_rpm(speed, self.level_tables[1])
+                )
         prefix = ("cpu", "gpu")[fan]
         if f"{prefix}_upper_temp" in self.temperature_fields:
             upper = getattr(row, f"{prefix}_upper_temp")
             if f"{prefix}_lower_temp" in self.temperature_fields:
-                details += f"\n{prefix.upper()} {getattr(row, f'{prefix}_lower_temp')}–{upper}°C"
+                details += translate("FanCurvePlot", "\n{sensor} {lower}\u2013{upper}\u00b0C").format(
+                    sensor=prefix.upper(), lower=getattr(row, f"{prefix}_lower_temp"), upper=upper
+                )
             else:
-                details += f"\n{prefix.upper()} upper {upper}°C"
+                details += translate("FanCurvePlot", "\n{sensor} upper {upper}\u00b0C").format(
+                    sensor=prefix.upper(), upper=upper
+                )
         writable = (self.entry_edits[index].fan_speed1_edit, self.entry_edits[index].fan_speed2_edit)[fan].isEnabled()
         if handle == "lower":
-            return details + "\nDrag the square to change only the lower temperature"
+            return details + translate("FanCurvePlot", "\nDrag the square to change only the lower temperature")
         if not writable:
-            return details + "\nShared fan speed (read-only)"
+            return details + translate("FanCurvePlot", "\nShared fan speed (read-only)")
         if self.temperature_axis:
-            action = "shift both bounds" if f"{prefix}_lower_temp" in self.temperature_fields else "change upper temp"
-            return details + f"\nDrag the dot to {action} and edit speed"
-        return details + "\nDrag the dot to edit speed"
+            if f"{prefix}_lower_temp" in self.temperature_fields:
+                return details + translate("FanCurvePlot", "\nDrag the dot to shift both bounds and edit speed")
+            return details + translate("FanCurvePlot", "\nDrag the dot to change upper temp and edit speed")
+        return details + translate("FanCurvePlot", "\nDrag the dot to edit speed")
 
     def mouseMoveEvent(self, event):  # pylint: disable=invalid-name
         if self._drag is not None and event.buttons() & Qt.MouseButton.LeftButton:
