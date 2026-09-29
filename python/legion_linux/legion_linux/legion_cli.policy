@@ -6,6 +6,7 @@
 
   <action id="legion_cli">
     <message gettext-domain="legion_cli">Authentication is required to run legion_cli</message>
+    <message xml:lang="zh_CN">运行 legion_cli 需要进行身份验证</message>
     <icon_name>legion_cli</icon_name>
     <defaults>
       <allow_any>auth_admin_keep</allow_any>
@@ -18,6 +19,7 @@
 
   <action id="legion_cli2">
     <message gettext-domain="legion_cli">Authentication is required to run legion_cli</message>
+    <message xml:lang="zh_CN">运行 legion_cli 需要进行身份验证</message>
     <icon_name>legion_cli</icon_name>
     <defaults>
       <allow_any>auth_admin_keep</allow_any>

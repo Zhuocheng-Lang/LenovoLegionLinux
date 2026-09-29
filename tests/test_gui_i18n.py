@@ -1,6 +1,9 @@
 """Run with QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p test_gui_i18n.py."""
 
 import logging
+import os
+import shutil
+import subprocess
 import sys
 import unittest
 from contextlib import contextmanager
@@ -9,6 +12,7 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python/legion_linux"))
 
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QApplication
 from legion_linux import i18n
 from legion_linux.i18n import detect_system_language, install_translators, parse_language_arg
@@ -67,3 +71,47 @@ class I18nLoaderTest(unittest.TestCase):
         ):
             self.assertEqual(install_translators(self.app, ["legion_gui.py", "--language", "zh_CN"]), "en")
             self.assertEqual(install_translators(self.app, ["legion_gui.py"]), "en")
+
+    @staticmethod
+    def ensure_qm():
+        """Return the compiled zh_CN catalog, building it with lrelease if needed."""
+        directory = i18n.translations_dir()
+        qm = os.path.join(directory, "legion_gui_zh_CN.qm")
+        ts = os.path.join(directory, "legion_gui_zh_CN.ts")
+        if not os.path.exists(qm) and os.path.exists(ts):
+            candidates = [
+                shutil.which("lrelease"),
+                shutil.which("lrelease-qt6"),
+                "/usr/lib/qt6/bin/lrelease",
+                "/usr/lib64/qt6/bin/lrelease",
+            ]
+            lrelease = next((path for path in candidates if path and os.path.exists(path)), None)
+            if lrelease is not None:
+                subprocess.run([lrelease, ts, "-qm", qm], check=True, timeout=120)
+        return qm if os.path.exists(qm) else None
+
+    def remove_translators_added(self, before):
+        for translator in i18n._loaded_translators[before:]:
+            self.app.removeTranslator(translator)
+        del i18n._loaded_translators[before:]
+        # Other test modules share this process and assert English text.
+        self.assertEqual(QCoreApplication.translate("MainWindow", "Save"), "Save")
+
+    def test_chinese_translation_applies(self):
+        qm = self.ensure_qm()
+        if qm is None:
+            self.skipTest("lrelease and a compiled legion_gui_zh_CN.qm are both unavailable")
+        before = len(i18n._loaded_translators)
+        self.addCleanup(self.remove_translators_added, before)
+        with mock_system_locale(["zh_CN"], "zh_CN"):
+            self.assertEqual(install_translators(self.app, ["legion_gui.py", "--language", "zh_CN"]), "zh_CN")
+        # Translators stay referenced so they cannot be garbage-collected.
+        self.assertGreaterEqual(len(i18n._loaded_translators), before + 1)
+        self.assertEqual(QCoreApplication.translate("MainWindow", "Save"), "\u4fdd\u5b58")
+        self.assertEqual(QCoreApplication.translate("NamedValue", "Max Power"), "\u8d85\u80fd\u6a21\u5f0f")
+        from legion_linux.legion_gui import preset_display_name
+
+        self.assertEqual(
+            preset_display_name("extreme-ac"),
+            "\u8d85\u80fd\u6a21\u5f0f \u00b7 \u63a5\u901a\u7535\u6e90\uff08extreme-ac\uff09",
+        )

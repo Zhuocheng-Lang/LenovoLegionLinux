@@ -2,8 +2,10 @@
 Version=1.0
 Type=Application
 Name=LenovoLegionLinux GUI
+Name[zh_CN]=LenovoLegionLinux 图形界面
 Icon=/usr/share/pixmaps/legion_logo.png
 Exec=legion_gui --use_legion_cli_to_write
 Comment=Control Lenovo Legion Laptops
+Comment[zh_CN]=控制联想拯救者笔记本
 Categories=System
 Terminal=false
