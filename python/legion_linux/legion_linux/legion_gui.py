@@ -42,6 +42,7 @@ from PyQt6.QtWidgets import (
 sys.path.insert(0, os.path.dirname(__file__) + "/..")
 import legion_linux.legion
 from legion_linux.fan_curve_plot import FanCurvePlot
+from legion_linux.i18n import install_translators
 from legion_linux.legion import (
     LegionModelFacade,
     FanCurve,
@@ -1872,6 +1873,11 @@ def main():
     QGuiApplication.setDesktopFileName("legion_gui.desktop")
 
     app = QApplication(sys.argv)
+
+    # Install translations before any widget is constructed. Translators
+    # are kept alive inside legion_linux.i18n; failures fall back to English.
+    language = install_translators(app, sys.argv)
+    log.info("Using GUI language: %s", language)
 
     use_legion_cli_to_write = "--use_legion_cli_to_write" in sys.argv
     expect_hwmon = bool(glob.glob(legion_linux.legion.FanCurveIO.hwmon_dir_pattern))
