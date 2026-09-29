@@ -6,7 +6,7 @@
     <message>
         <location filename="../legion_gui.py" line="1726" />
         <source>Help by giving a star to the github repo &lt;a href="https://github.com/johnfanv2/LenovoLegionLinux" &gt;https://github.com/johnfanv2/LenovoLegionLinux&lt;/a&gt;</source>
-        <translation>帮忙给 GitHub 仓库点个 Star 以支持我们 &lt;a href="https://github.com/johnfanv2/LenovoLegionLinux" &gt;https://github.com/johnfanv2/LenovoLegionLinux&lt;/a&gt;</translation>
+        <translation>帮忙给 GitHub 仓库点个 Star &lt;a href="https://github.com/johnfanv2/LenovoLegionLinux" &gt;https://github.com/johnfanv2/LenovoLegionLinux&lt;/a&gt;</translation>
     </message>
 </context><context>
     <name>AutomationTab</name>
@@ -43,7 +43,7 @@
     <message>
         <location filename="../legion_gui.py" line="1664" />
         <source>Icon Color Mode (requires reopening the app)</source>
-        <translation>图标配色（需要重新打开应用）</translation>
+        <translation>图标配色模式（需要重新打开应用）</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1670" />
@@ -85,14 +85,14 @@ To get the files go to extra/service in the repo.
     <message>
         <location filename="../legion_gui.py" line="1184" />
         <source>Invalid value in fan curve point {point}: fan speeds must be finite numbers.</source>
-        <translation>风扇曲线第 {point} 个点的取值无效：风扇转速必须是有限数字。</translation>
+        <translation>风扇曲线第 {point} 个点的取值无效：风扇转速必须是有限数值。</translation>
     </message>
 </context><context>
     <name>FanCurvePlot</name>
     <message>
         <location filename="../fan_curve_plot.py" line="36" />
         <source>Fan curve preview and drag editor</source>
-        <translation>风扇曲线预览与拖拽编辑器</translation>
+        <translation>风扇曲线预览与拖动编辑器</translation>
     </message>
     <message>
         <location filename="../fan_curve_plot.py" line="187" />
@@ -107,7 +107,7 @@ To get the files go to extra/service in the repo.
     <message>
         <location filename="../fan_curve_plot.py" line="199" />
         <source>FIRMWARE LEVEL</source>
-        <translation>固件挡位</translation>
+        <translation>固件等级</translation>
     </message>
     <message>
         <location filename="../fan_curve_plot.py" line="201" />
@@ -117,7 +117,7 @@ To get the files go to extra/service in the repo.
     <message>
         <location filename="../fan_curve_plot.py" line="212" />
         <source>Both fans (shared level)</source>
-        <translation>双风扇（共享挡位）</translation>
+        <translation>双风扇（共享等级）</translation>
     </message>
     <message>
         <location filename="../fan_curve_plot.py" line="214" />
@@ -162,14 +162,14 @@ To get the files go to extra/service in the repo.
     <message>
         <location filename="../fan_curve_plot.py" line="503" />
         <source> (firmware level {level})</source>
-        <translation>（固件挡位 {level}）</translation>
+        <translation>（固件等级 {level}）</translation>
     </message>
     <message>
         <location filename="../fan_curve_plot.py" line="505" />
         <source>
 Fan 2: {rpm} RPM at the same level</source>
         <translation>
-风扇 2 在同一挡位下为 {rpm} RPM</translation>
+风扇 2 在同一等级下的转速为 {rpm} RPM</translation>
     </message>
     <message>
         <location filename="../fan_curve_plot.py" line="512" />
@@ -290,7 +290,7 @@ Drag the dot to edit speed</source>
     <message>
         <location filename="../legion_gui.py" line="1306" />
         <source>Minifancurve if too cold</source>
-        <translation>过冷时启用 Minifancurve</translation>
+        <translation>温度过低时启用迷你风扇曲线</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1308" />
@@ -300,7 +300,7 @@ Drag the dot to edit speed</source>
     <message>
         <location filename="../legion_gui.py" line="1314" />
         <source>Set speed to maximum fan speed (often only in custom power mode possible)</source>
-        <translation>将转速设为最大风扇转速（通常仅在自定义电源模式下可用）</translation>
+        <translation>将转速设为最大风扇转速（通常仅在自定义模式下可用）</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1340" />
@@ -310,7 +310,7 @@ Drag the dot to edit speed</source>
     <message>
         <location filename="../legion_gui.py" line="1344" />
         <source>Drag a dot vertically for speed or horizontally to shift both temperature bounds. Drag a square to edit only the lower bound; hover for exact values, Esc cancels. Shared-level curves use one line for both fans. Only Apply to HW writes hardware.</source>
-        <translation>垂直拖动圆点调整转速，水平拖动可整体平移温度上下限。拖动方块可仅调整下限温度；悬停查看精确数值，按 Esc 取消。共享挡位曲线中双风扇共用一条曲线。只有“应用到硬件”才会真正写入硬件。</translation>
+        <translation>垂直拖动圆点调整转速，水平拖动可整体平移温度上下限。拖动方块可仅调整下限温度；悬停查看精确数值，按 Esc 取消。共享等级机型中双风扇共用一条曲线。只有“应用到硬件”才会真正写入硬件。</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1355" />
@@ -391,7 +391,7 @@ If features are marked red, an unexpected error has occurred while accessing the
     <message>
         <location filename="../legion_gui.py" line="961" />
         <source>Cannot edit RPM: the firmware fan 2 RPM ladder is unavailable</source>
-        <translation>无法编辑转速：固件风扇 2 的 RPM 阶梯不可用</translation>
+        <translation>无法编辑转速：固件风扇 2 的 RPM 等级表不可用</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="972" />
@@ -420,7 +420,7 @@ If features are marked red, an unexpected error has occurred while accessing the
 To create it, configure your desired fan curve and click 'Save to Preset'.</source>
         <translation>预设“{name}”尚不存在。
 
-要创建它，请先调好风扇曲线，再点击“保存到预设”。</translation>
+要创建它，请先设置好想要的风扇曲线，再点击“保存到预设”。</translation>
     </message>
 </context><context>
     <name>LegionTray</name>
@@ -551,17 +551,17 @@ To create it, configure your desired fan curve and click 'Save to Preset'.</sour
     <message>
         <location filename="../legion_gui.py" line="70" />
         <source>Always use colorful color scheme</source>
-        <translation>始终使用彩色图标</translation>
+        <translation>始终使用彩色配色</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="71" />
         <source>Always use light color scheme</source>
-        <translation>始终使用浅色图标</translation>
+        <translation>始终使用浅色配色</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="72" />
         <source>Always use dark color scheme</source>
-        <translation>始终使用深色图标</translation>
+        <translation>始终使用深色配色</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="73" />
@@ -618,17 +618,17 @@ To create it, configure your desired fan curve and click 'Save to Preset'.</sour
     <message>
         <location filename="../legion_gui.py" line="1456" />
         <source>Display Overdrive Enabled</source>
-        <translation>启用屏幕 Overdrive（响应加速）</translation>
+        <translation>启用显示器超频（响应加速）</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1459" />
         <source>Y-Logo/Lid LED light</source>
-        <translation>Y 标 / 顶盖灯</translation>
+        <translation>Y-Logo / 顶盖 LED 灯</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1462" />
         <source>IO-Port/Rear LEDs light</source>
-        <translation>IO 接口 / 后部灯</translation>
+        <translation>IO 端口 / 后部 LED 灯</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="1465" />
