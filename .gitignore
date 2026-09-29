@@ -4,6 +4,9 @@
 # Python
 __pycache__/
 
+# Qt compiled translations (built from translations/*.ts by lrelease)
+*.qm
+
 legion_linux.egg-info/
 
 deb_dist

@@ -19,6 +19,12 @@ BuildRequires:  clang
 BuildRequires:  gcc
 BuildRequires:  inih-devel
 BuildRequires:  systemd-rpm-macros
+# lrelease compiles the GUI translations/*.ts to *.qm during the wheel build
+%if 0%{?suse_version}
+BuildRequires:  qt6-tools-linguist
+%else
+BuildRequires:  qt6-linguist
+%endif
 Vendor: johnfan <johnfan@example.org>
 Packager: Gonçalo Negrier Duarte <gonegrier.duarte@gamil.com>
 Url: https://github.com/johnfanv2/LenovoLegionLinux

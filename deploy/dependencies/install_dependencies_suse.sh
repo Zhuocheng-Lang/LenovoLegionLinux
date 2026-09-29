@@ -11,4 +11,6 @@ fi
 set -e
 # allow post-script install to fail (107) because it will try to update initramfs which is not possible inside container
 sudo zypper --non-interactive install python3-argcomplete
+# lrelease: compiles GUI translations/*.ts to *.qm during the Python package build
+sudo zypper --non-interactive install qt6-tools-linguist
 sudo zypper --non-interactive install dkms openssl mokutil
