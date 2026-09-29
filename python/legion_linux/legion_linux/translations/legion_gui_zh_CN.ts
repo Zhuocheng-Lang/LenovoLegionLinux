@@ -526,17 +526,17 @@ To create it, configure your desired fan curve and click 'Save to Preset'.</sour
     <message>
         <location filename="../legion_gui.py" line="65" />
         <source>Low Power</source>
-        <translation>静音模式</translation>
+        <translation>安静模式</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="66" />
         <source>Balanced Mode</source>
-        <translation>平衡模式</translation>
+        <translation>均衡模式</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="67" />
         <source>Performance Mode</source>
-        <translation>高性能模式</translation>
+        <translation>野兽模式</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="68" />
@@ -778,17 +778,17 @@ To create it, configure your desired fan curve and click 'Save to Preset'.</sour
     <message>
         <location filename="../legion_gui.py" line="88" />
         <source>Low Power</source>
-        <translation>静音模式</translation>
+        <translation>安静模式</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="89" />
         <source>Balanced Mode</source>
-        <translation>平衡模式</translation>
+        <translation>均衡模式</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="90" />
         <source>Performance Mode</source>
-        <translation>高性能模式</translation>
+        <translation>野兽模式</translation>
     </message>
     <message>
         <location filename="../legion_gui.py" line="91" />
