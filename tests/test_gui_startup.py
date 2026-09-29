@@ -10,11 +10,13 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python/legion_linux"))
 
 from PyQt6.QtCore import QEvent, QPointF, Qt
-from PyQt6.QtGui import QColor, QIcon, QKeyEvent, QMouseEvent, QPalette
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtGui import QAction, QColor, QIcon, QKeyEvent, QMouseEvent, QPalette
+from PyQt6.QtWidgets import QApplication, QComboBox, QMessageBox
 from legion_linux import legion
-from legion_linux.legion import FanCurve, FanCurveEntry, FanCurveIO, FileFeature
+from legion_linux.legion import FanCurve, FanCurveEntry, FanCurveIO, FileFeature, NamedValue
 from legion_linux.legion_gui import (
+    EnumFeatureController,
+    EnumFeatureTrayController,
     FanCurveTab,
     LegionController,
     MainWindow,
@@ -332,8 +334,9 @@ class GuiStartupTest(unittest.TestCase):
             with patch.object(controller.model, "load_fancurve_from_preset") as mock_load, patch.object(
                 controller, "update_fancurve_gui"
             ) as mock_update:
-                controller.view_fancurve.preset_combobox.addItem("performance-ac")
-                controller.view_fancurve.preset_combobox.setCurrentText("performance-ac")
+                controller.view_fancurve.preset_combobox.setCurrentIndex(
+                    controller.view_fancurve.preset_combobox.findData("performance-ac")
+                )
                 controller.on_load_from_preset()
                 mock_load.assert_called_once_with("performance-ac")
                 mock_update.assert_called_once()
@@ -376,11 +379,9 @@ class GuiStartupTest(unittest.TestCase):
             entry_view.fan_speed1_edit.setText("2000")
             entry_view.accel_edit.setText("1")
             entry_view.decel_edit.setText("2")
-            with patch.object(
-                controller.model.fancurve_io, "has_acceleration_curve", return_value=True
-            ), patch.object(QMessageBox, "warning"), patch.object(
-                controller.model, "write_fancurve_to_hw"
-            ) as mock_write:
+            with patch.object(controller.model.fancurve_io, "has_acceleration_curve", return_value=True), patch.object(
+                QMessageBox, "warning"
+            ), patch.object(controller.model, "write_fancurve_to_hw") as mock_write:
                 controller.on_write_fan_curve_to_hw()
                 mock_write.assert_not_called()
         finally:
@@ -394,9 +395,7 @@ class GuiStartupTest(unittest.TestCase):
             controller.init(read_from_hw=False)
             with patch.object(
                 controller.model, "write_fancurve_to_hw", side_effect=RuntimeError("legion_cli failed")
-            ), patch.object(
-                controller.model, "read_fancurve_from_hw"
-            ) as mock_read, patch.object(
+            ), patch.object(controller.model, "read_fancurve_from_hw") as mock_read, patch.object(
                 controller, "update_fancurve_gui"
             ) as mock_update, patch.object(
                 QMessageBox, "warning"
@@ -558,17 +557,130 @@ class GuiStartupTest(unittest.TestCase):
             entry_view.fan_speed1_edit.setText("2000")
             entry_view.accel_edit.setText("0")
             entry_view.decel_edit.setText("0")
-            with patch.object(
-                controller.model.fancurve_io, "has_acceleration_curve", return_value=False
-            ), patch.object(
+            with patch.object(controller.model.fancurve_io, "has_acceleration_curve", return_value=False), patch.object(
                 controller.model, "write_fancurve_to_hw"
-            ) as mock_write, patch.object(
-                controller.model, "read_fancurve_from_hw"
-            ), patch.object(
+            ) as mock_write, patch.object(controller.model, "read_fancurve_from_hw"), patch.object(
                 controller, "update_fancurve_gui"
             ):
                 controller.on_write_fan_curve_to_hw()
                 mock_write.assert_called_once()
+        finally:
+            window.deleteLater()
+            self.app.processEvents()
+
+    def make_enum_feature(self, current="balanced"):
+        feature = Mock()
+        feature.exists.return_value = True
+        feature.get_values.return_value = [
+            NamedValue("low-power", "Low Power"),
+            NamedValue("balanced", "Balanced Mode"),
+            NamedValue("performance", "Performance Mode"),
+        ]
+        feature.get.return_value = current
+        return feature
+
+    def test_enum_combo_writes_item_data_not_display_text(self):
+        # Simulate a translated UI: display texts are replaced by arbitrary
+        # strings. Selection must still write the matching value (R2).
+        feature = self.make_enum_feature()
+        combo = QComboBox()
+        controller = EnumFeatureController(combo, feature)
+        try:
+            controller.update_view_from_feature(0, True)
+            self.assertEqual(combo.itemData(0), "low-power")
+            self.assertEqual(combo.itemData(1), "balanced")
+            self.assertEqual(combo.currentIndex(), 1)
+            combo.blockSignals(True)
+            combo.setItemText(0, "任意中文一")
+            combo.setItemText(1, "任意中文二")
+            combo.setItemText(2, "任意中文三")
+            combo.setCurrentIndex(0)
+            combo.blockSignals(False)
+            feature.set.reset_mock()
+            controller.update_feature_from_view()
+            feature.set.assert_called_once_with("low-power")
+            # Unknown item data must not write anything.
+            combo.blockSignals(True)
+            combo.addItem("未知", "no-such-value")
+            combo.setCurrentIndex(3)
+            combo.blockSignals(False)
+            feature.set.reset_mock()
+            controller.update_feature_from_view()
+            feature.set.assert_not_called()
+        finally:
+            combo.deleteLater()
+            self.app.processEvents()
+
+    def test_enum_combo_locates_value_with_find_data(self):
+        feature = self.make_enum_feature(current="performance")
+        combo = QComboBox()
+        controller = EnumFeatureController(combo, feature)
+        try:
+            controller.update_view_from_feature(0, True)
+            self.assertEqual(combo.currentIndex(), 2)
+            self.assertEqual(combo.currentData(), "performance")
+        finally:
+            combo.deleteLater()
+            self.app.processEvents()
+
+    def test_enum_tray_actions_carry_value_in_data(self):
+        feature = self.make_enum_feature()
+        actions = [QAction(None) for _ in range(4)]
+        controller = EnumFeatureTrayController(feature, actions)
+        try:
+            self.assertEqual(actions[0].data(), "low-power")
+            self.assertEqual(actions[1].data(), "balanced")
+            self.assertEqual(actions[2].data(), "performance")
+            # Display text is translateable; the click still writes the value.
+            actions[0].setText("任意中文")
+            feature.set.reset_mock()
+            controller.on_action_click(actions[0].data())
+            feature.set.assert_called_once_with("low-power")
+        finally:
+            for action in actions:
+                action.deleteLater()
+            self.app.processEvents()
+
+    def test_preset_tray_actions_carry_key_in_data(self):
+        model = Mock()
+        model.fancurve_repo.get_names.return_value = ["quiet-battery", "extreme-ac"]
+        model.fancurve_repo.does_exists_by_name.return_value = True
+        actions = [QAction(None) for _ in range(2)]
+        controller = PresetTrayController(model, actions)
+        try:
+            self.assertEqual(actions[0].data(), "quiet-battery")
+            self.assertEqual(actions[1].data(), "extreme-ac")
+            actions[1].setText("任意中文标签")
+            controller.on_action_click(actions[1].data())
+            model.fancurve_write_preset_to_hw.assert_called_once_with("extreme-ac")
+        finally:
+            for action in actions:
+                action.deleteLater()
+            self.app.processEvents()
+
+    def test_preset_combo_uses_key_from_item_data(self):
+        controller = LegionController(self.app, expect_hwmon=False, use_legion_cli_to_write=True)
+        window = MainWindow(controller, QIcon())
+        try:
+            controller.init(read_from_hw=False)
+            combo = controller.view_fancurve.preset_combobox
+            index = combo.findData("performance-ac")
+            self.assertGreaterEqual(index, 0)
+            self.assertEqual(combo.itemData(index), "performance-ac")
+            # Simulate a translated UI: display texts are replaced.
+            for row in range(combo.count()):
+                combo.setItemText(row, f"翻译标签{row}")
+            combo.setCurrentIndex(combo.findData("extreme-ac"))
+            with patch.object(controller.model, "load_fancurve_from_preset") as mock_load, patch.object(
+                controller, "update_fancurve_gui"
+            ):
+                controller.on_load_from_preset()
+                mock_load.assert_called_once_with("extreme-ac")
+            with patch.object(controller, "_read_fancurve_from_view", return_value=True), patch.object(
+                controller.model, "save_fancurve_to_preset"
+            ) as mock_save:
+                controller.on_save_to_preset()
+                mock_save.assert_called_once_with("extreme-ac")
         finally:
             window.deleteLater()
             self.app.processEvents()

@@ -204,21 +204,17 @@ class EnumFeatureController:
         self.update_feature_from_view()
 
     def update_feature_from_view(self):
-        # print("update_feature_from_view", self.widget.currentText())
+        # Item data carries the value to write; the display text may be
+        # translated, so it must never be used to look up the value.
         try:
             if self.feature.exists():
-                gui_value = self.widget.currentText()
+                value = self.widget.currentData()
                 values = self.feature.get_values()
-                value = None
-                for val in values:
-                    if gui_value == val.name:
-                        value = val.value
-
-                if value is not None:
+                if value is not None and any(val.value == value for val in values):
                     log.info("Set to value: %s", value)
                     self.feature.set(value)
                 else:
-                    log.info("Value for gui_value %s not found", gui_value)
+                    log.info("Value for gui_value %s not found", value)
             else:
                 self.widget.setDisabled(True)
         # pylint: disable=broad-except
@@ -238,21 +234,21 @@ class EnumFeatureController:
         log.info("update_view_from_feature: %d", k)
         try:
             if self.feature.exists():
-                # possible values -> items
+                # possible values -> items (value in item data, display text is translateable)
                 values = self.feature.get_values()
                 self.widget.blockSignals(True)
                 if update_items:
                     self.widget.clear()
                     for val in values:
-                        self.widget.addItem(val.name)
+                        self.widget.addItem(val.name, val.value)
                 self.widget.blockSignals(False)
 
                 # value -> index
                 value = self.feature.get()
                 self.widget.blockSignals(True)
-                for i, val in enumerate(values):
-                    if value == val.value:
-                        self.widget.setCurrentIndex(i)
+                index = self.widget.findData(value)
+                if index >= 0:
+                    self.widget.setCurrentIndex(index)
                 self.widget.blockSignals(False)
                 self.widget.setDisabled(False)
             else:
@@ -397,6 +393,8 @@ class PresetTrayController:
         for i, action in enumerate(self.actions):
             name = list(self.model.fancurve_repo.get_names())[i]
             action.setText(f"Apply preset {name}")
+            # The preset key travels in action data; the text may be translated.
+            action.setData(name)
             action.setCheckable(False)
             action.setDisabled(not self.model.fancurve_repo.does_exists_by_name(name))
 
@@ -447,6 +445,8 @@ class EnumFeatureTrayController:
                         name = values[i].name
                         action.setVisible(True)
                         action.setText(f"Set {name}")
+                        # The value to write travels in action data; the text may be translated.
+                        action.setData(value)
                         action.setCheckable(True)
                         action.setChecked(value == current_value)
 
@@ -966,7 +966,9 @@ class LegionController:
         return True
 
     def on_load_from_preset(self):
-        name = self.view_fancurve.preset_combobox.currentText()
+        name = self.view_fancurve.preset_combobox.currentData()
+        if name is None:
+            name = self.view_fancurve.preset_combobox.currentText()
         try:
             self.model.load_fancurve_from_preset(name)
         except FileNotFoundError:
@@ -980,7 +982,9 @@ class LegionController:
         self.update_fancurve_gui()
 
     def on_save_to_preset(self):
-        name = self.view_fancurve.preset_combobox.currentText()
+        name = self.view_fancurve.preset_combobox.currentData()
+        if name is None:
+            name = self.view_fancurve.preset_combobox.currentText()
         if not self._read_fancurve_from_view():
             return
         self.model.save_fancurve_to_preset(name)
@@ -1199,7 +1203,8 @@ class FanCurveTab(QWidget):
     def set_presets(self, presets):
         self.preset_combobox.clear()
         for preset in presets:
-            self.preset_combobox.addItem(preset)
+            # The preset key travels in item data; the display text may be translated.
+            self.preset_combobox.addItem(preset, preset)
 
     def init_ui(self):
         # pylint: disable=too-many-statements
