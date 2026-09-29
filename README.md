@@ -569,6 +569,24 @@ Unexpected:
 - an error is displayed or everything is `0`: kernel module not loaded or installed (see above) or not compatible (do manual tests from above)
 - an value is not accepted when `Write to HW`: the value is out-of-range and was not accepted by hardware
 
+#### GUI language
+
+The GUI follows the system language: on a Simplified Chinese system
+(`LANG=zh_CN.UTF-8`) it shows a Chinese interface, otherwise English.
+Pass `--language` to override the detection:
+
+```bash
+legion_gui --language zh_CN   # force Simplified Chinese
+legion_gui --language en      # force English
+```
+
+The override exists because launchers such as `pkexec` clear locale
+environment variables. There is no in-GUI language setting. To contribute
+another language, refresh the message catalog with
+`deploy/update_translations.sh`, translate the new entries in
+`python/legion_linux/legion_linux/translations/` with Qt Linguist, and
+rebuild (setup.py compiles every `*.ts` with lrelease).
+
 ### Changing and Setting your own Fan Curve with the Python CLI
 
 You can do the same as the GUI from a CLI program. It will access the same presets.

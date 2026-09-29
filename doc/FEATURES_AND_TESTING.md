@@ -10,6 +10,28 @@ and the notice explains that custom fan curves are unsupported. Check that
 Run `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p
 'test_gui_startup.py'` for the startup regression tests.
 
+## GUI localization (Simplified Chinese)
+
+Manual check on real hardware (see also the automated `./tests/test_python_translations.sh`):
+
+```bash
+# Chinese UI following the system locale (needs the wheel built with lrelease
+# so legion_gui_zh_CN.qm is installed)
+LANG=zh_CN.UTF-8 xvfb-run python/legion_linux/legion_linux/legion_gui.py --automaticclose
+# Forced Chinese regardless of locale (for pkexec, which clears LANG)
+LANG=C xvfb-run python/legion_linux/legion_linux/legion_gui.py --automaticclose --language zh_CN
+# Forced English on a Chinese system
+LANG=zh_CN.UTF-8 xvfb-run python/legion_linux/legion_linux/legion_gui.py --automaticclose --language en
+```
+
+Browse all five tabs, the tray menu and a message box in Chinese: no clipped
+controls and no leftover English except logs, the LenovoLegionLinux product
+name and abbreviations (EC/BIOS/cTGP and the like). Preset entries keep their
+keys, e.g. `超能模式 · 接通电源（extreme-ac）`. Switching the power mode
+and applying a fan curve in the Chinese UI must write the same values as in
+English; confirm with `cat /sys/firmware/acpi/platform_profile` and
+`sudo cat /sys/kernel/debug/legion/fancurve`.
+
 ## Fan curve on Legion Zone v3 firmware (level indices)
 
 On `model_kwcn` (Legion Pro 5 16IRX8, BIOS KWCN54WW) `Fan_Set_Table` takes ten level

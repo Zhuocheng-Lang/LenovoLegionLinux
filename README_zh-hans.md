@@ -579,6 +579,17 @@ sudo python/legion_linux/legion_linux/legion_gui.py
 - 显示错误或所有值为 `0`：内核模块未加载或未安装（见上文）或不兼容（请按照上方手动测试）。
 - 使用 `Write to HW` 写入硬件时某个值被拒绝：说明该值超出硬件允许范围。
 
+#### GUI 语言
+
+GUI 跟随系统语言：在简体中文系统（`LANG=zh_CN.UTF-8`）下显示中文界面，其他语言显示英文。可通过 `--language` 覆盖自动检测：
+
+```bash
+legion_gui --language zh_CN   # 强制简体中文
+legion_gui --language en      # 强制英文
+```
+
+提供该参数是因为 `pkexec` 等启动器会清除 locale 环境变量。GUI 内没有语言设置项。要贡献新语言，可运行 `deploy/update_translations.sh` 刷新消息目录，再用 Qt Linguist 翻译 `python/legion_linux/legion_linux/translations/` 下的新条目并重新构建（setup.py 会用 lrelease 编译全部 `*.ts`）。
+
 ### 使用 Python CLI 更改和设置自定义风扇曲线
 
 你也可以通过 CLI 程序实现和 GUI 相同的功能，并可访问相同的预设。
@@ -725,15 +736,15 @@ LLL 守护进程（`legiond`）是一个小型 C 程序（见 [extra/service/leg
 该守护进程可以根据电源模式和是否插电，自动切换 GUI 中设定的风扇曲线配置文件。  
 可用的配置文件如下：
 
-- quiet-battery - 电池供电下安静模式风扇配置
+- quiet-battery - 电池供电下静音模式风扇配置
 - balanced-battery - 电池供电下平衡模式风扇配置
 - balanced-performance-battery - 电池供电下自定义模式风扇配置
 - performance-battery - 电池供电下高性能模式风扇配置
-- quiet-ac - 充电器供电下安静模式风扇配置
+- quiet-ac - 充电器供电下静音模式风扇配置
 - balanced-ac - 充电器供电下平衡模式风扇配置
 - balanced-performance-ac - 充电器供电下自定义模式风扇配置
 - performance-ac - 充电器供电下高性能模式风扇配置
-- extreme-ac - 充电器供电下极致模式风扇配置
+- extreme-ac - 充电器供电下超能模式风扇配置
 
 示例配置文件在 [这里](extra/service/profiles)，也可以通过 GUI 便捷设置：
 
